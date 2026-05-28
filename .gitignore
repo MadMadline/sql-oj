@@ -1,0 +1,32 @@
+# Python 虚拟环境
+venv/
+env/
+.venv/
+
+# Python 编译文件
+__pycache__/
+*.py[cod]
+*.so
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+/media/
+
+# IDE
+.vscode/
+.idea/
+
+# 环境变量（含敏感信息）
+.env
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 分发/打包
+dist/
+build/
+*.egg-info/
