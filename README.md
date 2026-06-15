@@ -1,6 +1,6 @@
-# SQL OJ 后端项目
+# SQL OJ 项目
 
-SQL 在线判题系统（SQL Online Judge）的后端代码，基于 Django + Django REST Framework 开发。
+SQL 在线判题系统（SQL Online Judge），包含 Django 后端（API + 判题引擎）和 Vue 3 前端。
 
 ---
 
@@ -51,6 +51,13 @@ SQL 在线判题系统（SQL Online Judge）的后端代码，基于 Django + Dj
 - ✅ 每道题的通过率统计（教师可见）
 - ✅ 学生通过率排名（教师可见）
 
+### 2.6 前端页面 ✅ 已完成
+- ✅ 登录 / 注册页面
+- ✅ 学生端：题目列表、题目详情、提交记录、考试面板
+- ✅ 教师端：题目管理（CRUD）、创建考试、成绩统计（ECharts 可视化）
+- ✅ 路由守卫：自动区分学生/教师角色，未登录跳转登录页
+- ✅ API 代理：Vite 开发代理自动转发 `/api` 到后端 8000 端口
+
 ---
 
 ## 三、技术栈
@@ -73,6 +80,18 @@ SQL 在线判题系统（SQL Online Judge）的后端代码，基于 Django + Dj
 | Docker | 启动临时 PostgreSQL 容器作为沙箱 |
 | PostgreSQL 15 | 沙箱数据库（每个提交独立容器） |
 | psycopg2 | Python 连接 PostgreSQL |
+
+### 前端
+
+| 技术 | 说明 |
+|------|------|
+| Vue 3 + TypeScript | 前端框架 |
+| Vite 8 | 构建工具 |
+| Element Plus | UI 组件库 |
+| Pinia | 状态管理 |
+| Vue Router 5 | 路由 |
+| Axios | HTTP 请求 |
+| ECharts 6 | 图表可视化 |
 
 ---
 
@@ -127,8 +146,19 @@ sql_oj/
 │   ├── requirements_judge.txt # 判题服务依赖
 │   └── start_judge.bat        # Windows 一键启动脚本
 │
-└── docs/                      # 文档
-    └── judge_api.md           # 判题服务 API 详细文档
+├── docs/                      # 文档
+│   └── judge_api.md           # 判题服务 API 详细文档
+│
+└── sql-oj-frontend/           # 前端项目（Vue 3 + TS）
+    ├── package.json           # 前端依赖
+    ├── vite.config.ts         # Vite 配置（含 /api 代理）
+    └── src/
+        ├── router/index.ts    # 路由 + 权限守卫
+        ├── stores/user.ts     # 用户状态（Pinia）
+        ├── api/               # 后端 API 调用封装
+        └── views/             # 页面组件
+            ├── student/       # 学生端页面
+            └── teacher/       # 教师端页面
 ```
 
 ---
@@ -253,7 +283,26 @@ Starting development server at http://127.0.0.1:8000/
 
 > ⚠️ 注意：后端和判题服务**需要同时运行**（两个终端窗口），否则提交 SQL 会报错。
 
-### 5.7 测试一下接口
+### 5.7 启动前端 ⚠️ 新增
+
+**前置条件：** Node.js 18+ （https://nodejs.org/）
+
+```powershell
+# 1. 进入前端目录
+cd sql-oj-frontend
+
+# 2. 安装依赖
+npm install
+
+# 3. 启动开发服务器
+npm run dev
+```
+
+默认运行在 `http://localhost:5173`，Vite 配置了代理，`/api` 请求会自动转发到 `http://localhost:8000`。
+
+> 💡 **推荐启动顺序**：先启动判题服务（5.5），再启动后端（5.6），最后启动前端（5.7）。
+
+### 5.8 测试一下接口
 
 用 **Postman**（https://www.postman.com/downloads/）或浏览器的开发者工具测试：
 
@@ -438,33 +487,30 @@ JUDGE_SERVICE_URL = "http://实际地址:实际端口/judge"
 
 ---
 
-## 八、给负责前端的队友
+## 八、前端项目说明
 
-### 你需要知道的事
+前端代码在 `sql-oj-frontend/` 目录下，技术栈为 Vue 3 + TypeScript + Element Plus。
 
-1. **后端地址**：`http://127.0.0.1:8000`（开发时）
-2. **所有业务 API** 都在 `/api/` 路径下
-3. **几乎所有接口都需要登录**。登录后拿到 Token，后续每个请求都要在 Header 里带上：
-   ```
-   Authorization: Bearer <token>
-   ```
-4. **Token 有效期 2 小时**。过期后用 `/api/auth/refresh/` 刷新，或者让用户重新登录
-5. **注册时需要传 `user_type`**：`"student"` 或 `"teacher"`
-6. **跨域已经配好了**（CORS 开发阶段全部放开），前端直接调就行，不会遇到跨域问题
+### 页面路由一览
 
-### API 返回格式
+| 路径 | 页面 | 角色 |
+|---|---|---|
+| `/login` | 登录 | 所有人 |
+| `/questions` | 题目列表 | 学生 / 教师 |
+| `/questions/:id` | 题目详情 + 提交 | 学生 / 教师 |
+| `/submissions` | 提交记录 | 学生 / 教师 |
+| `/exam/:id` | 考试面板 | 学生 |
+| `/teacher/questions` | 题目管理 | 教师 |
+| `/teacher/questions/create` | 创建题目 | 教师 |
+| `/teacher/exams` | 考试管理 | 教师 |
+| `/teacher/stats` | 成绩统计 | 教师 |
 
-- **列表接口**（如 `/api/questions/`）：DRF 自动分页，格式为：
-  ```json
-  {
-      "count": 总条数,
-      "next": "下一页URL或null",
-      "previous": "上一页URL或null",
-      "results": [具体数据数组]
-  }
-  ```
-- **详情/创建/修改接口**：直接返回对象 JSON
-- **错误时**：返回 `{"error": "错误描述"}` 或 DRF 默认的错误格式
+### 关键设计
+
+1. **后端地址**：前端通过 Vite proxy 转发 `/api` 到 `http://localhost:8000`，无需配置跨域
+2. **认证流程**：登录后 Token 和用户信息存入 localStorage，路由守卫自动校验
+3. **角色区分**：学生端无布局栏直接浏览，教师端带侧边栏 Layout
+4. **统计图表**：教师统计页使用 ECharts 渲染通过率排名等图表
 
 ---
 
