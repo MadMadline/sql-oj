@@ -34,6 +34,7 @@ QUESTIONS = [
             "若有多人并列最高，需全部返回。\n\n"
             "返回列：employee_id, name, net_income"
         ),
+        "title": "员工晋升",
         "difficulty": "medium",
         "create_table_sql": (
             "CREATE TABLE Employees (\n"
@@ -94,6 +95,7 @@ QUESTIONS = [
             "AUC = 总得分 / (正负样本对数量)，结果保留 4 位小数。\n\n"
             "返回：auc"
         ),
+        "title": "计算模型 AUC",
         "difficulty": "easy",
         "create_table_sql": (
             "CREATE TABLE predictions (\n"
@@ -140,6 +142,7 @@ QUESTIONS = [
             "返回：user_id, third_tag, watch_days\n"
             "排序：user_id ASC, third_tag ASC"
         ),
+        "title": "观看天数统计",
         "difficulty": "easy",
         "create_table_sql": (
             "CREATE TABLE mid_third_tag_vv_vt_daily (\n"
@@ -183,6 +186,7 @@ QUESTIONS = [
             "浮点数保留 6 位小数\n\n"
             "排序：active_group ASC, model_group ASC"
         ),
+        "title": "模型打分分布对比",
         "difficulty": "hard",
         "create_table_sql": (
             "CREATE TABLE model_scores (\n"
@@ -261,6 +265,7 @@ QUESTIONS = [
             "返回：user_id, user_name\n"
             "排序：user_id ASC"
         ),
+        "title": "连续签到用户统计",
         "difficulty": "medium",
         "create_table_sql": (
             "CREATE TABLE Users (\n"
@@ -311,6 +316,7 @@ QUESTIONS = [
             "返回：department_name, employee_name, salary\n"
             "排序：department_name ASC, employee_name ASC"
         ),
+        "title": "部门内第二高薪员工",
         "difficulty": "medium",
         "create_table_sql": (
             "CREATE TABLE Departments (\n"
@@ -356,6 +362,7 @@ QUESTIONS = [
             "- 转化率保留 2 位小数\n\n"
             "排序：product_id ASC"
         ),
+        "title": "订单转化漏斗分析",
         "difficulty": "hard",
         "create_table_sql": (
             "CREATE TABLE Events (\n"
@@ -397,6 +404,7 @@ QUESTIONS = [
             "返回：user_id, user_name\n"
             "排序：user_id ASC"
         ),
+        "title": "连续三个月消费增长",
         "difficulty": "hard",
         "create_table_sql": (
             "CREATE TABLE Users (\n"
@@ -456,6 +464,7 @@ QUESTIONS = [
             "返回：post_id, author_name, reply_count, avg_likes\n"
             "排序：post_id ASC"
         ),
+        "title": "论坛热帖",
         "difficulty": "easy",
         "create_table_sql": (
             "CREATE TABLE Posts (\n"
@@ -497,6 +506,7 @@ QUESTIONS = [
             "返回：daily_heat, activity_date\n"
             "排序：daily_heat DESC"
         ),
+        "title": "社区活跃度",
         "difficulty": "easy",
         "create_table_sql": (
             "CREATE TABLE Activity (\n"

@@ -9,6 +9,7 @@ class Question(models.Model):
         ('hard', 'Hard'),
     ]
     description = models.TextField()
+    title = models.CharField(max_length=255, blank=True, default='')
     sample_input = models.TextField(blank=True, null=True)
     sample_output = models.TextField(blank=True, null=True)
     create_table_sql = models.TextField(blank=True, null=True)

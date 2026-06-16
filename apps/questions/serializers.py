@@ -22,3 +22,17 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = '__all__'
         read_only_fields = ('teacher', 'created_at')
+
+
+class QuestionStudentSerializer(serializers.ModelSerializer):
+    """学生视角：不暴露正确答案"""
+    test_cases = TestCaseSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = (
+            'id', 'title', 'description', 'difficulty', 'sample_input',
+            'sample_output', 'create_table_sql', 'teacher', 'created_at',
+            'test_cases',
+        )
+        read_only_fields = ('teacher', 'created_at')

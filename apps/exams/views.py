@@ -10,8 +10,18 @@ from apps.users.permissions import IsTeacher
 
 class ExamViewSet(viewsets.ModelViewSet):
     """考试管理 ViewSet"""
-    queryset = Exam.objects.all().prefetch_related('exam_questions__question')
     serializer_class = ExamSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        base_qs = Exam.objects.all().prefetch_related('exam_questions__question')
+        if user.user_type == 'teacher':
+            # 教师只看自己创建的考试
+            return base_qs.filter(teacher=user)
+        # 学生看自己老师创建的考试
+        if user.teacher:
+            return base_qs.filter(teacher=user.teacher)
+        return Exam.objects.none()
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):

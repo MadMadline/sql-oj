@@ -3,7 +3,8 @@ from rest_framework.response import Response
 
 from .models import Question, Answer, TestCase
 from .serializers import (
-    QuestionSerializer, AnswerSerializer, TestCaseSerializer
+    QuestionSerializer, QuestionStudentSerializer,
+    AnswerSerializer, TestCaseSerializer
 )
 from apps.users.permissions import IsTeacher
 
@@ -11,7 +12,12 @@ from apps.users.permissions import IsTeacher
 class QuestionViewSet(viewsets.ModelViewSet):
     """题目管理 ViewSet"""
     queryset = Question.objects.all().prefetch_related('answers', 'test_cases')
-    serializer_class = QuestionSerializer
+
+    def get_serializer_class(self):
+        """学生看不到答案，教师看到完整信息"""
+        if self.request.user.user_type == 'student':
+            return QuestionStudentSerializer
+        return QuestionSerializer
 
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
