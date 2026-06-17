@@ -43,13 +43,6 @@ import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 
-// ========== Mock 数据 ==========
-const mockSubmissions = [
-  { id: 1, question: 1, submitted_sql: 'SELECT * FROM students', execution_status: 'ACCEPTED', score: 100, created_at: '2026-06-15 10:30:00' },
-  { id: 2, question: 2, submitted_sql: 'SELECT name FROM students WHERE age > 18', execution_status: 'WRONG_ANSWER', score: 0, created_at: '2026-06-15 11:00:00' },
-]
-// ==============================
-
 const submissions = ref<any[]>([])
 const loading = ref(false)
 const currentPage = ref(1)
@@ -73,16 +66,9 @@ const statusTagType = (status: string) => {
 const loadSubmissions = async () => {
   loading.value = true
   try {
-    // TODO: 后端好了后替换真实 API
-    // const res = await getSubmissions({ page: currentPage.value })
-    // submissions.value = res.data.results
-    // total.value = res.data.count
-    
-    setTimeout(() => {
-      submissions.value = mockSubmissions
-      total.value = mockSubmissions.length
-      loading.value = false
-    }, 500)
+    const res = await getSubmissions({ page: currentPage.value })
+    submissions.value = res.data.results
+    total.value = res.data.count
   } catch (error) {
     ElMessage.error('加载提交记录失败')
     loading.value = false

@@ -11,6 +11,13 @@
       <el-table-column prop="start_time" label="开始时间" width="180" />
       <el-table-column prop="end_time" label="结束时间" width="180" />
       <el-table-column prop="total_score" label="总分" width="80" />
+      <el-table-column label="考生范围" width="120">
+        <template #default="{ row }">
+          <el-tag size="small" :type="row.student_scope === 'all' ? 'success' : 'warning'">
+            {{ row.student_scope === 'all' ? '所有学生' : '指定学生' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="viewRanking(row.id)">排名</el-button>
@@ -20,49 +27,110 @@
     </el-table>
 
     <!-- 创建考试弹窗 -->
-    <el-dialog v-model="dialogVisible" title="创建考试" width="600px">
+    <el-dialog v-model="dialogVisible" title="创建考试" width="700px" @close="resetForm">
       <el-form :model="examForm" label-width="100px">
         <el-form-item label="考试名称" required>
-          <el-input v-model="examForm.title" />
+          <el-input v-model="examForm.title" placeholder="请输入考试名称" />
         </el-form-item>
+
         <el-form-item label="开始时间" required>
           <el-date-picker
             v-model="examForm.start_time"
             type="datetime"
             placeholder="选择日期时间"
             value-format="YYYY-MM-DDTHH:mm:ss"
+            style="width: 100%"
           />
         </el-form-item>
+
         <el-form-item label="结束时间" required>
           <el-date-picker
             v-model="examForm.end_time"
             type="datetime"
             placeholder="选择日期时间"
             value-format="YYYY-MM-DDTHH:mm:ss"
+            style="width: 100%"
           />
         </el-form-item>
+
         <el-form-item label="总分" required>
-          <el-input-number v-model="examForm.total_score" :min="0" />
+          <el-input-number v-model="examForm.total_score" :min="0" :step="10" />
         </el-form-item>
+
+        <!-- ===== 选择题目区域 ===== -->
         <el-form-item label="选择题目">
-          <div v-for="q in selectedQuestions" :key="q.id" class="question-item">
-            <span>{{ q.description }}</span>
-            <el-input-number v-model="q.score" :min="0" :max="100" size="small" style="width: 100px" />
-            <el-button type="danger" size="small" @click="removeQuestion(q.id)">移除</el-button>
+          <div class="question-select-area">
+            <div v-if="selectedQuestions.length === 0" class="empty-hint">
+              暂无已选题目，请从下方添加
+            </div>
+            <div v-for="q in selectedQuestions" :key="q.id" class="question-item">
+              <span class="question-title">{{ getDisplayTitle(q) }}</span>
+              <div class="question-score-wrapper">
+                <el-input-number
+                  v-model="q.score"
+                  :min="0"
+                  :max="100"
+                  size="small"
+                  controls-position="right"
+                  style="width: 100px"
+                />
+                <span class="score-unit">分</span>
+              </div>
+              <el-button type="danger" size="small" @click="removeQuestion(q.id)">移除</el-button>
+            </div>
+            <div class="add-question-row">
+              <el-select
+                v-model="selectedQuestionId"
+                placeholder="选择要添加的题目"
+                @change="addQuestion"
+                style="flex: 1"
+                clearable
+              >
+                <el-option
+                  v-for="q in availableQuestions"
+                  :key="q.id"
+                  :label="getDisplayTitle(q)"
+                  :value="q.id"
+                />
+              </el-select>
+            </div>
           </div>
-          <el-select v-model="selectedQuestionId" placeholder="添加题目" @change="addQuestion">
-            <el-option
-              v-for="q in availableQuestions"
-              :key="q.id"
-              :label="q.description"
-              :value="q.id"
-            />
-          </el-select>
+        </el-form-item>
+
+        <!-- ===== ✅ 新增：选择学生区域 ===== -->
+        <el-form-item label="选择学生" required>
+          <div class="student-select-area">
+            <el-radio-group v-model="examForm.student_scope" @change="onStudentScopeChange">
+              <el-radio value="all">📚 所有学生</el-radio>
+              <el-radio value="selected">👤 指定学生</el-radio>
+            </el-radio-group>
+
+            <el-select
+              v-if="examForm.student_scope === 'selected'"
+              v-model="examForm.selected_students"
+              multiple
+              filterable
+              placeholder="请选择参加考试的学生"
+              style="width: 100%; margin-top: 12px"
+              :loading="loadingStudents"
+            >
+              <el-option
+                v-for="student in allStudents"
+                :key="student.id"
+                :label="student.username + (student.email ? ' (' + student.email + ')' : '')"
+                :value="student.id"
+              />
+            </el-select>
+            <div v-if="examForm.student_scope === 'selected'" class="input-hint">
+              已选 {{ examForm.selected_students.length }} 名学生
+            </div>
+          </div>
         </el-form-item>
       </el-form>
+
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="createExam">创建</el-button>
+        <el-button type="primary" @click="createExam" :loading="creating">创建</el-button>
       </template>
     </el-dialog>
 
@@ -74,56 +142,102 @@
         <el-table-column prop="score" label="得分" />
         <el-table-column prop="submitted_at" label="提交时间" />
       </el-table>
+      <template #footer v-if="rankings.length === 0">
+        <span style="color: #909399; font-size: 14px;">暂无学生参加此考试</span>
+      </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getExams, createExam, deleteExam, getExamResult } from '../../api/exams'
 import { getQuestions } from '../../api/questions'
+import { getStudents } from '../../api/users'  // ✅ 新增：获取学生列表
+
+// ===== 防死循环锁 =====
+let isLoadingExams = false
 
 const loading = ref(false)
+const creating = ref(false)
+const loadingStudents = ref(false)
 const dialogVisible = ref(false)
 const rankVisible = ref(false)
 const exams = ref<any[]>([])
 const allQuestions = ref<any[]>([])
+const allStudents = ref<any[]>([])  // ✅ 新增：学生列表
 const rankings = ref<any[]>([])
 const currentExamTitle = ref('')
 
+// ✅ 考试表单新增 student_scope 和 selected_students
 const examForm = ref({
   title: '',
   start_time: '',
   end_time: '',
-  total_score: 100
+  total_score: 100,
+  student_scope: 'all' as 'all' | 'selected',
+  selected_students: [] as number[]
 })
 
-const selectedQuestions = ref<{ id: number; description: string; score: number }[]>([])
+const selectedQuestions = ref<{ id: number; title: string; description: string; score: number }[]>([])
 const selectedQuestionId = ref<number | null>(null)
+
+// ===== 获取题目的显示名称 =====
+const getDisplayTitle = (q: any) => {
+  if (q.title) return q.title
+  if (q.description) {
+    return q.description.length > 30 ? q.description.substring(0, 30) + '...' : q.description
+  }
+  return `题目 ${q.id}`
+}
 
 const availableQuestions = computed(() => {
   return allQuestions.value.filter(q => !selectedQuestions.value.some(sq => sq.id === q.id))
 })
 
+// ===== loadExams 加锁，防止死循环 =====
 const loadExams = async () => {
+  if (isLoadingExams) {
+    console.warn('⏳ 考试列表正在加载中，跳过重复请求')
+    return
+  }
+
+  isLoadingExams = true
   loading.value = true
+
   try {
     const res = await getExams()
-    exams.value = res.data.results || res.data
+    exams.value = res.data.results || res.data || []
   } catch (error) {
-    ElMessage.error('加载考试列表失败')
+    if (exams.value.length === 0) {
+      ElMessage.error('加载考试列表失败')
+    }
   } finally {
     loading.value = false
+    isLoadingExams = false
   }
 }
 
 const loadQuestions = async () => {
   try {
     const res = await getQuestions()
-    allQuestions.value = res.data.results || res.data
+    allQuestions.value = res.data.results || res.data || []
   } catch (error) {
     ElMessage.error('加载题目列表失败')
+  }
+}
+
+// ✅ 新增：加载学生列表
+const loadStudents = async () => {
+  loadingStudents.value = true
+  try {
+    const res = await getStudents()
+    allStudents.value = res.data.results || res.data || []
+  } catch (error) {
+    ElMessage.error('加载学生列表失败')
+  } finally {
+    loadingStudents.value = false
   }
 }
 
@@ -133,7 +247,8 @@ const addQuestion = () => {
   if (question) {
     selectedQuestions.value.push({
       id: question.id,
-      description: question.description,
+      title: question.title || '',
+      description: question.description || '',
       score: 10
     })
   }
@@ -144,12 +259,45 @@ const removeQuestion = (id: number) => {
   selectedQuestions.value = selectedQuestions.value.filter(q => q.id !== id)
 }
 
+// ✅ 切换学生范围时清空已选
+const onStudentScopeChange = () => {
+  if (examForm.value.student_scope === 'all') {
+    examForm.value.selected_students = []
+  }
+}
+
+const resetForm = () => {
+  examForm.value = {
+    title: '',
+    start_time: '',
+    end_time: '',
+    total_score: 100,
+    student_scope: 'all',
+    selected_students: []
+  }
+  selectedQuestions.value = []
+}
+
 const createExam = async () => {
   if (!examForm.value.title) {
     ElMessage.warning('请填写考试名称')
     return
   }
+  if (!examForm.value.start_time || !examForm.value.end_time) {
+    ElMessage.warning('请选择考试时间')
+    return
+  }
+  if (selectedQuestions.value.length === 0) {
+    ElMessage.warning('请至少选择一道题目')
+    return
+  }
+  // ✅ 校验：指定学生时必须选择至少一名学生
+  if (examForm.value.student_scope === 'selected' && examForm.value.selected_students.length === 0) {
+    ElMessage.warning('请选择参加考试的学生')
+    return
+  }
 
+  creating.value = true
   try {
     await createExam({
       title: examForm.value.title,
@@ -159,16 +307,22 @@ const createExam = async () => {
       exam_questions: selectedQuestions.value.map(q => ({
         question: q.id,
         score: q.score
-      }))
+      })),
+      // ✅ 新增：学生范围信息
+      student_scope: examForm.value.student_scope,
+      student_ids: examForm.value.student_scope === 'selected'
+        ? examForm.value.selected_students
+        : []
     })
-    ElMessage.success('创建成功')
+    ElMessage.success('创建成功 ✅')
     dialogVisible.value = false
-    loadExams()
-    // 重置表单
-    examForm.value = { title: '', start_time: '', end_time: '', total_score: 100 }
-    selectedQuestions.value = []
-  } catch (error) {
-    ElMessage.error('创建失败')
+    resetForm()
+    await loadExams()
+  } catch (error: any) {
+    const msg = error.response?.data?.error || '创建失败，请重试'
+    ElMessage.error(msg)
+  } finally {
+    creating.value = false
   }
 }
 
@@ -177,7 +331,7 @@ const viewRanking = async (examId: number) => {
     const res = await getExamResult(examId)
     const exam = exams.value.find(e => e.id === examId)
     currentExamTitle.value = exam?.title || ''
-    rankings.value = res.data.results || res.data
+    rankings.value = res.data.results || res.data || []
     rankVisible.value = true
   } catch (error) {
     ElMessage.error('加载排名失败')
@@ -185,26 +339,26 @@ const viewRanking = async (examId: number) => {
 }
 
 const handleDelete = (id: number) => {
-  ElMessageBox.confirm('确定删除此考试？', '提示').then(async () => {
+  ElMessageBox.confirm('确定删除此考试？删除后不可恢复', '提示', {
+    confirmButtonText: '确定删除',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
     try {
       await deleteExam(id)
       ElMessage.success('删除成功')
-      loadExams()
+      await loadExams()
     } catch (error) {
       ElMessage.error('删除失败')
     }
-  })
+  }).catch(() => {})
 }
 
 onMounted(() => {
   loadExams()
   loadQuestions()
+  loadStudents()  // ✅ 新增：加载学生列表
 })
-</script>
-
-<script lang="ts">
-import { computed } from 'vue'
-export default {}
 </script>
 
 <style scoped>
@@ -218,14 +372,125 @@ export default {}
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
+.header h1 {
+  margin: 0;
+  font-size: 22px;
+  color: #2d3748;
+}
+
+/* ===== 创建考试弹窗样式 ===== */
+.exam-manage :deep(.el-dialog) {
+  border-radius: 12px;
+}
+.exam-manage :deep(.el-dialog__header) {
+  padding: 20px 24px 10px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.exam-manage :deep(.el-dialog__body) {
+  padding: 20px 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.exam-manage :deep(.el-dialog__footer) {
+  padding: 12px 24px 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* ===== 选择题目区域 ===== */
+.question-select-area {
+  width: 100%;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #fafafa;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.empty-hint {
+  color: #c0c4cc;
+  font-size: 14px;
+  text-align: center;
+  padding: 16px 0;
+}
+
 .question-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 10px;
-  padding: 8px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
+}
+
+.question-item:last-child {
+  margin-bottom: 0;
+}
+
+.question-title {
+  flex: 1;
+  font-size: 14px;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.question-score-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.score-unit {
+  font-size: 13px;
+  color: #606266;
+  margin-left: 2px;
+}
+
+.add-question-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #dcdfe6;
+}
+
+.add-question-row .el-select {
+  width: 100%;
+}
+
+/* ===== ✅ 新增：选择学生区域样式 ===== */
+.student-select-area {
+  width: 100%;
+  padding: 4px 0;
+}
+
+.student-select-area .el-radio-group {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+.input-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 6px;
+}
+
+/* ===== 表格样式 ===== */
+.exam-manage :deep(.el-table) {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 </style>

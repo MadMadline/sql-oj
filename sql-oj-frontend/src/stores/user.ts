@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { User } from '../types/api'
 import { login as loginApi, getCurrentUser } from '../api/auth'
 
@@ -38,6 +38,10 @@ export const useUserStore = defineStore('user', () => {
       user.value = JSON.parse(storedUser)
     }
   }
+  // 在 return 里添加
+const isTeacher = computed(() => user.value?.user_type === 'teacher')
+const isStudent = computed(() => user.value?.user_type === 'student')
 
-  return { user, token, login, fetchUser, logout, restoreUser }
+return { user, token, isTeacher, isStudent, login, fetchUser, logout, restoreUser }
+
 })

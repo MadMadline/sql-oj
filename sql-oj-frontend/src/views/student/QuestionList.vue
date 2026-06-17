@@ -1,19 +1,21 @@
 <template>
   <div class="question-list-container">
     <div class="header">
-      <h1>SQL 题库</h1>
+      <h1>📚 SQL 题库</h1>
       <div class="user-info">
         <span>欢迎，{{ userStore.user?.username }}</span>
-        <el-button type="primary" link @click="goToSubmissions">我的提交</el-button>
+        <el-button type="primary" link @click="goToProfile">👤 个人中心</el-button>
+        <el-button type="primary" link @click="goToExams">📋 考试</el-button>
+        <el-button type="primary" link @click="goToSubmissions">📝 我的提交</el-button>
         <el-button type="danger" size="small" @click="handleLogout">退出</el-button>
       </div>
     </div>
 
     <el-table :data="questions" v-loading="loading" stripe>
       <el-table-column prop="id" label="题号" width="80" />
-      <el-table-column prop="description" label="题目描述" min-width="300">
+      <el-table-column prop="title" label="题目名称" min-width="200">
         <template #default="{ row }">
-          <div class="description-preview">{{ truncateDescription(row.description) }}</div>
+          <span>{{ row.title || truncateDescription(row.description) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="difficulty" label="难度" width="100">
@@ -49,18 +51,10 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../../stores/user'
+import { getQuestions } from '../../api/questions'
 
 const router = useRouter()
 const userStore = useUserStore()
-
-// ========== Mock 数据（后端好了后删除，改用真实 API）==========
-const mockQuestions = [
-  { id: 1, description: '查询所有学生的姓名和年龄', difficulty: 'easy' },
-  { id: 2, description: '查询成绩大于80分的学生姓名', difficulty: 'easy' },
-  { id: 3, description: '查询每个班级的学生数量', difficulty: 'medium' },
-  { id: 4, description: '查询平均成绩最高的前3名学生', difficulty: 'hard' },
-]
-// ============================================================
 
 const questions = ref<any[]>([])
 const loading = ref(false)
@@ -69,7 +63,8 @@ const pageSize = ref(20)
 const total = ref(0)
 
 const truncateDescription = (desc: string) => {
-  if (desc.length > 100) return desc.substring(0, 100) + '...'
+  if (!desc) return '未命名题目'
+  if (desc.length > 30) return desc.substring(0, 30) + '...'
   return desc
 }
 
@@ -94,21 +89,22 @@ const difficultyText = (difficulty: string) => {
 const loadQuestions = async () => {
   loading.value = true
   try {
-    // TODO: 后端好了后，替换成真实 API 调用
-    // const res = await getQuestions({ page: currentPage.value })
-    // questions.value = res.data.results
-    // total.value = res.data.count
-    
-    // 临时 Mock
-    setTimeout(() => {
-      questions.value = mockQuestions
-      total.value = mockQuestions.length
-      loading.value = false
-    }, 500)
+    const res = await getQuestions({ page: currentPage.value })
+    questions.value = res.data.results || []
+    total.value = res.data.count || 0
   } catch (error) {
     ElMessage.error('加载题目列表失败')
+  } finally {
     loading.value = false
   }
+}
+
+const goToProfile = () => {
+  router.push('/profile')
+}
+
+const goToExams = () => {
+  router.push('/exams')
 }
 
 const goToDetail = (id: number) => {
@@ -128,7 +124,7 @@ const handleLogout = () => {
     userStore.logout()
     router.push('/login')
     ElMessage.success('已退出登录')
-  })
+  }).catch(() => {})
 }
 
 onMounted(() => {
@@ -147,17 +143,20 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding: 0 20px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.header h1 {
+  margin: 0;
+  font-size: 22px;
+  color: #2d3748;
 }
 .user-info {
   display: flex;
   align-items: center;
-  gap: 15px;
-}
-.description-preview {
-  font-size: 14px;
-  color: #606266;
-  line-height: 1.5;
+  gap: 12px;
 }
 .pagination {
   margin-top: 20px;

@@ -6,8 +6,19 @@
     </div>
 
     <el-form :model="form" label-width="120px" v-loading="loading">
+      <!-- ✅ 新增：题目名称（用于列表展示） -->
+      <el-form-item label="题目名称" required>
+        <el-input
+          v-model="form.title"
+          placeholder="请输入简短题目名称，如：查询学生信息"
+          maxlength="50"
+          show-word-limit
+        />
+        <div class="input-hint">用于列表展示，建议不超过 20 个字</div>
+      </el-form-item>
+
       <el-form-item label="题目描述" required>
-        <el-input v-model="form.description" type="textarea" :rows="3" />
+        <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入完整题目描述" />
       </el-form-item>
 
       <el-form-item label="难度" required>
@@ -35,7 +46,7 @@
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" @click="handleSubmit">提交</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitting">提交</el-button>
         <el-button @click="goBack">取消</el-button>
       </el-form-item>
     </el-form>
@@ -46,16 +57,18 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { useUserStore } from '../../stores/user'
+import { createQuestion, updateQuestion, getQuestionDetail } from '../../api/questions'  // ✅ 补全导入
 
 const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
 
 const isEdit = ref(false)
 const loading = ref(false)
+const submitting = ref(false)  // ✅ 新增：提交按钮独立加载状态
 
+// ✅ 新增 title 字段
 const form = ref({
+  title: '',                  // ✅ 新增
   description: '',
   difficulty: 'easy',
   create_table_sql: '',
@@ -64,31 +77,70 @@ const form = ref({
   correct_sql: ''
 })
 
+// ✅ 编辑时加载题目数据
 const loadQuestion = async (id: number) => {
-  // TODO: 调用获取题目详情 API
-  // 编辑模式时加载已有数据
+  loading.value = true
+  try {
+    const res = await getQuestionDetail(id)
+    const data = res.data
+    // 把后端数据填充到表单
+    form.value = {
+      title: data.title || data.description?.substring(0, 30) || '',  // ✅ 新增
+      description: data.description || '',
+      difficulty: data.difficulty || 'easy',
+      create_table_sql: data.create_table_sql || '',
+      sample_input: data.sample_input || '',
+      sample_output: data.sample_output || '',
+      correct_sql: data.answers?.[0]?.correct_sql || ''
+    }
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '加载题目数据失败')
+  } finally {
+    loading.value = false
+  }
 }
 
+// ✅ 提交处理：创建或更新
 const handleSubmit = async () => {
-  if (!form.value.description) {
+  // 校验：题目名称
+  if (!form.value.title || form.value.title.trim().length === 0) {
+    ElMessage.warning('请填写题目名称')
+    return
+  }
+  // 校验：题目描述
+  if (!form.value.description || form.value.description.trim().length === 0) {
     ElMessage.warning('请填写题目描述')
     return
   }
 
-  loading.value = true
+  submitting.value = true
   try {
+    // 构造提交数据（后端需要的格式）
+    const submitData = {
+      title: form.value.title,
+      description: form.value.description,
+      difficulty: form.value.difficulty,
+      create_table_sql: form.value.create_table_sql,
+      sample_input: form.value.sample_input,
+      sample_output: form.value.sample_output,
+      // 答案和测试用例需要按后端格式包装
+      answers: form.value.correct_sql ? [{ correct_sql: form.value.correct_sql }] : [],
+      test_cases: []  // 如果有测试用例，可以在这里添加
+    }
+
     if (isEdit.value) {
-      // TODO: 调用编辑 API
-      ElMessage.success('编辑成功')
+      await updateQuestion(Number(route.query.id), submitData)
+      ElMessage.success('编辑成功 ✅')
     } else {
-      // TODO: 调用创建 API
-      ElMessage.success('创建成功')
+      await createQuestion(submitData)
+      ElMessage.success('创建成功 ✅')
     }
     router.push('/teacher/questions')
-  } catch (error) {
-    ElMessage.error('操作失败')
+  } catch (error: any) {
+    const msg = error.response?.data?.error || '操作失败，请重试'
+    ElMessage.error(msg)
   } finally {
-    loading.value = false
+    submitting.value = false
   }
 }
 
@@ -110,11 +162,48 @@ onMounted(() => {
   padding: 20px;
   max-width: 900px;
   margin: 0 auto;
+  min-height: 100vh;
+  background-color: #f5f7fa;
 }
+
 .header {
   display: flex;
   align-items: center;
   gap: 20px;
   margin-bottom: 30px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 22px;
+  color: #2d3748;
+}
+
+/* ✅ 表单使用卡片样式 */
+.create-container :deep(.el-form) {
+  background: white;
+  padding: 30px 40px 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.create-container :deep(.el-form-item) {
+  margin-bottom: 22px;
+}
+
+.create-container :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.input-hint {
+  font-size: 12px;
+  color: #a0aec0;
+  margin-top: 4px;
+  padding-left: 4px;
 }
 </style>

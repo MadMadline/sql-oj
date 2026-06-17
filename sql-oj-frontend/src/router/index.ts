@@ -27,9 +27,22 @@ const router = createRouter({
       meta: { requiresAuth: true, allowedRoles: ['student', 'teacher'] }
     },
     {
+      path: '/exams',
+      name: 'ExamList',
+      component: () => import('../views/student/ExamList.vue'),
+      meta: { requiresAuth: true, allowedRoles: ['student', 'teacher'] }
+    },
+    {
       path: '/submissions',
       name: 'MySubmissions',
       component: () => import('../views/student/MySubmissions.vue'),
+      meta: { requiresAuth: true, allowedRoles: ['student', 'teacher'] }
+    },
+    // 在学生端路由中添加
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('../views/Profile.vue'),
       meta: { requiresAuth: true, allowedRoles: ['student', 'teacher'] }
     },
     {
@@ -49,6 +62,7 @@ const router = createRouter({
           name: 'TeacherQuestionList',
           component: () => import('../views/teacher/QuestionManage.vue')
         },
+        
         {
           path: 'questions/create',
           name: 'CreateQuestion',

@@ -1,5 +1,5 @@
 """
-导入上机课 10 道题目到数据库（PostgreSQL 适配版）
+导入上机课 10 道题目到数据库（PostgreSQL 适配版，含测试用例）
 用法: python manage.py import_exercises [--teacher-id=1]
 """
 from django.core.management.base import BaseCommand
@@ -7,6 +7,7 @@ from apps.questions.models import Question, Answer, TestCase
 from apps.users.models import User
 
 QUESTIONS = [
+    # ---------- 第 1 题：员工晋升 ----------
     {
         "description": (
             "## 员工晋升\n\n"
@@ -72,8 +73,20 @@ QUESTIONS = [
                 "WHERE net_income = (SELECT MAX(net_income) FROM StaffIncome);"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO Employees (employee_id, name, role) VALUES (1, 'Alice', 'Staff'), (2, 'Bob', 'Staff'), (3, 'Charlie', 'Manager');"
+                    "INSERT INTO Incomes (employee_id, income_date, income_type, amount) VALUES "
+                    "(1, '2023-02-01', 'Salary', 5000), (1, '2023-03-01', 'Bonus', 500), (1, '2023-04-01', 'Fine', 500), "
+                    "(2, '2023-02-01', 'Salary', 6000), (2, '2023-05-01', 'Bonus', 1000), (2, '2023-05-15', 'Fine', 1000), "
+                    "(3, '2023-03-01', 'Salary', 10000);"
+                ),
+                "expected_output": "employee_id|name|net_income\n2|Bob|6000"
+            }
+        ],
     },
+    # ---------- 第 2 题：计算模型 AUC ----------
     {
         "description": (
             "## 计算模型 AUC\n\n"
@@ -121,8 +134,17 @@ QUESTIONS = [
                 "  ON p.label = 1 AND n.label = 0;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO predictions (user_id, item_id, label, score) VALUES "
+                    "(1, 1, 1, 0.9), (1, 2, 0, 0.5), (2, 1, 1, 0.8), (2, 3, 0, 0.3);"
+                ),
+                "expected_output": "auc\n0.7500"
+            }
+        ],
     },
+    # ---------- 第 3 题：观看天数统计 ----------
     {
         "description": (
             "## 观看天数统计\n\n"
@@ -161,8 +183,18 @@ QUESTIONS = [
                 "ORDER BY user_id, third_tag;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO mid_third_tag_vv_vt_daily (mid, third_tag, log_date) VALUES "
+                    "(1001, 'sports', '2023-07-01'), (1001, 'sports', '2023-07-02'), "
+                    "(1001, 'news', '2023-07-02'), (1002, 'sports', '2023-07-01');"
+                ),
+                "expected_output": "user_id|third_tag|watch_days\n1001|news|1\n1001|sports|2\n1002|sports|1"
+            }
+        ],
     },
+    # ---------- 第 4 题：模型打分分布对比 ----------
     {
         "description": (
             "## 模型打分分布对比\n\n"
@@ -246,8 +278,21 @@ QUESTIONS = [
                 "ORDER BY a.active_group ASC, a.model_group ASC;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO model_scores (user_id, av_id, model_group, score, active_level) VALUES "
+                    "(1, 1, 'base', 0.5, 2), (1, 2, 'base', 0.8, 2), (2, 1, 'exp', 0.6, 5);"
+                ),
+                "expected_output": (
+                    "active_group|model_group|cnt|avg_score|std_score|p10_score|p50_score|p90_score|p99_score\n"
+                    "low|base|2|0.650000|0.212132|0.500000|0.800000|0.800000|0.800000\n"
+                    "mid|exp|1|0.600000||0.600000|0.600000|0.600000|0.600000"
+                )
+            }
+        ],
     },
+    # ---------- 第 5 题：连续签到用户统计 ----------
     {
         "description": (
             "## 连续签到用户统计\n\n"
@@ -277,9 +322,9 @@ QUESTIONS = [
                 "WITH cte AS (\n"
                 "    SELECT\n"
                 "        user_id, checkin_date,\n"
-                "        DATE_SUB(checkin_date, INTERVAL ROW_NUMBER() OVER (\n"
+                "        checkin_date - INTERVAL '1 day' * ROW_NUMBER() OVER (\n"
                 "            PARTITION BY user_id ORDER BY checkin_date\n"
-                "        ) DAY) AS grp\n"
+                "        ) AS grp\n"
                 "    FROM Checkins\n"
                 "    WHERE checkin_date BETWEEN '2025-04-01' AND '2025-04-07'\n"
                 "),\n"
@@ -295,8 +340,19 @@ QUESTIONS = [
                 "ORDER BY u.user_id;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO Users (user_id, user_name) VALUES (1, 'Alice'), (2, 'Bob');"
+                    "INSERT INTO Checkins (user_id, checkin_date) VALUES "
+                    "(1, '2025-04-01'), (1, '2025-04-02'), (1, '2025-04-03'), "
+                    "(2, '2025-04-01'), (2, '2025-04-03');"
+                ),
+                "expected_output": "user_id|user_name\n1|Alice"
+            }
+        ],
     },
+    # ---------- 第 6 题：部门内第二高薪员工 ----------
     {
         "description": (
             "## 部门内第二高薪员工\n\n"
@@ -340,8 +396,18 @@ QUESTIONS = [
                 "ORDER BY d.department_name, r.employee_name;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO Departments (department_id, department_name) VALUES (1, 'Tech'), (2, 'Sales');"
+                    "INSERT INTO Employees (employee_id, employee_name, department_id, salary) VALUES "
+                    "(1, 'A', 1, 100), (2, 'B', 1, 90), (3, 'C', 1, 90), (4, 'D', 2, 200);"
+                ),
+                "expected_output": "department_name|employee_name|salary\nTech|B|90\nTech|C|90"
+            }
+        ],
     },
+    # ---------- 第 7 题：订单转化漏斗分析 ----------
     {
         "description": (
             "## 订单转化漏斗分析\n\n"
@@ -377,14 +443,28 @@ QUESTIONS = [
                 ")\n"
                 "SELECT\n"
                 "    product_id, visit_users, add_cart_users, pay_users,\n"
-                "    ROUND(CASE WHEN visit_users = 0 THEN 0 ELSE add_cart_users / visit_users END, 2) AS visit_to_cart_rate,\n"
-                "    ROUND(CASE WHEN add_cart_users = 0 THEN 0 ELSE pay_users / add_cart_users END, 2) AS cart_to_pay_rate\n"
+                "    ROUND(CASE WHEN visit_users = 0 THEN 0 ELSE add_cart_users::decimal / visit_users END, 2) AS visit_to_cart_rate,\n"
+                "    ROUND(CASE WHEN add_cart_users = 0 THEN 0 ELSE pay_users::decimal / add_cart_users END, 2) AS cart_to_pay_rate\n"
                 "FROM summary\n"
                 "ORDER BY product_id;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO Events (user_id, product_id, event_type, event_time) VALUES "
+                    "(1, 101, 'visit', now()), (1, 101, 'add_cart', now()), "
+                    "(2, 101, 'visit', now()), (1, 102, 'visit', now());"
+                ),
+                "expected_output": (
+                    "product_id|visit_users|add_cart_users|pay_users|visit_to_cart_rate|cart_to_pay_rate\n"
+                    "101|2|1|0|0.50|0.00\n"
+                    "102|1|0|0|0.00|0.00"
+                )
+            }
+        ],
     },
+    # ---------- 第 8 题：连续三个月消费增长的用户 ----------
     {
         "description": (
             "## 连续三个月消费增长的用户\n\n"
@@ -414,10 +494,10 @@ QUESTIONS = [
                 "WITH monthly AS (\n"
                 "    SELECT\n"
                 "        user_id,\n"
-                "        DATE_FORMAT(order_date, '%Y-%m-01') AS month_start,\n"
+                "        DATE_TRUNC('month', order_date) AS month_start,\n"
                 "        SUM(amount) AS total_amount\n"
                 "    FROM Orders\n"
-                "    GROUP BY user_id, DATE_FORMAT(order_date, '%Y-%m-01')\n"
+                "    GROUP BY user_id, DATE_TRUNC('month', order_date)\n"
                 "),\n"
                 "seq AS (\n"
                 "    SELECT\n"
@@ -432,15 +512,28 @@ QUESTIONS = [
                 "FROM seq s\n"
                 "JOIN Users u ON s.user_id = u.user_id\n"
                 "WHERE\n"
-                "    PERIOD_DIFF(DATE_FORMAT(next_month, '%Y%m'), DATE_FORMAT(month_start, '%Y%m')) = 1\n"
-                "    AND PERIOD_DIFF(DATE_FORMAT(next_2_month, '%Y%m'), DATE_FORMAT(next_month, '%Y%m')) = 1\n"
+                "    (EXTRACT(YEAR FROM next_month) * 12 + EXTRACT(MONTH FROM next_month)) - \n"
+                "    (EXTRACT(YEAR FROM s.month_start) * 12 + EXTRACT(MONTH FROM s.month_start)) = 1\n"
+                "    AND\n"
+                "    (EXTRACT(YEAR FROM next_2_month) * 12 + EXTRACT(MONTH FROM next_2_month)) - \n"
+                "    (EXTRACT(YEAR FROM next_month) * 12 + EXTRACT(MONTH FROM next_month)) = 1\n"
                 "    AND total_amount < next_amount\n"
                 "    AND next_amount < next_2_amount\n"
                 "ORDER BY u.user_id;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO Users (user_id, user_name) VALUES (1, 'Alice');"
+                    "INSERT INTO Orders (order_id, user_id, amount, order_date) VALUES "
+                    "(1, 1, 100, '2025-01-05'), (2, 1, 200, '2025-02-10'), (3, 1, 300, '2025-03-15');"
+                ),
+                "expected_output": "user_id|user_name\n1|Alice"
+            }
+        ],
     },
+    # ---------- 第 9 题：论坛热帖 ----------
     {
         "description": (
             "## 论坛热帖\n\n"
@@ -478,8 +571,17 @@ QUESTIONS = [
                 "ORDER BY p1.post_id;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO Posts (post_id, author_name, reply_to, likes) VALUES "
+                    "(1, 'Alice', NULL, 10), (2, 'Bob', 1, 5), (3, 'Charlie', 1, 7);"
+                ),
+                "expected_output": "post_id|author_name|reply_count|avg_likes\n1|Alice|2|6"
+            }
+        ],
     },
+    # ---------- 第 10 题：社区活跃度 ----------
     {
         "description": (
             "## 社区活跃度\n\n"
@@ -534,13 +636,21 @@ QUESTIONS = [
                 "ORDER BY daily_heat DESC;"
             )}
         ],
-        "test_cases": [],
+        "test_cases": [
+            {
+                "test_input": (
+                    "INSERT INTO Activity (user_id, session_id, activity_date, activity_type) VALUES "
+                    "(1, 1, '2019-06-28', 'open_session'), (1, 1, '2019-06-28', 'scroll_down'), "
+                    "(2, 2, '2019-06-29', 'send_message');"
+                ),
+                "expected_output": "activity_date|daily_heat\n2019-06-28|3\n2019-06-29|5"
+            }
+        ],
     },
 ]
 
-
 class Command(BaseCommand):
-    help = '导入上机课 10 道题目到数据库'
+    help = '导入上机课 10 道题目到数据库（含测试用例）'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -561,6 +671,9 @@ class Command(BaseCommand):
             ))
             return
 
+        # 可选：清空旧数据（如需要可取消注释）
+        # Question.objects.all().delete()
+
         created = 0
         for q_data in QUESTIONS:
             answers = q_data.pop('answers', [])
@@ -578,5 +691,5 @@ class Command(BaseCommand):
             ))
 
         self.stdout.write(self.style.SUCCESS(
-            f'\n🎉 成功导入 {created} 道题目！'
+            f'\n🎉 成功导入 {created} 道题目（含测试用例）！'
         ))

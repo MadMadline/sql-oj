@@ -18,6 +18,10 @@
           <el-icon><DataAnalysis /></el-icon>
           <span>统计分析</span>
         </el-menu-item>
+        <el-menu-item index="/profile">
+          <el-icon><User /></el-icon>
+          <span>个人中心</span>
+        </el-menu-item>
       </el-menu>
       <div class="user-info">
         <span>{{ userStore.user?.username }}</span>
@@ -33,8 +37,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Document, Notebook, DataAnalysis } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'  // ✅ 导入 ElMessageBox
+import { Document, Notebook, DataAnalysis, User } from '@element-plus/icons-vue'
 import { useUserStore } from '../../stores/user'
 
 const route = useRoute()
@@ -43,10 +47,19 @@ const userStore = useUserStore()
 
 const activeMenu = computed(() => route.path)
 
+// ✅ 退出登录增加确认弹窗
 const handleLogout = () => {
-  userStore.logout()
-  router.push('/login')
-  ElMessage.success('已退出')
+  ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    userStore.logout()
+    router.push('/login')
+    ElMessage.success('已退出登录')
+  }).catch(() => {
+    // 用户取消，不做任何事
+  })
 }
 </script>
 
