@@ -22,7 +22,7 @@
       </el-table-column>
       <el-table-column prop="score" label="得分" width="80" />
       <!-- ✅ 新增：提交时间列 -->
-      <el-table-column prop="created_at" label="提交时间" width="180" />
+      <el-table-column prop="submission_time" label="提交时间" width="180" />
       <!-- ✅ 新增：查看详情操作 -->
       <el-table-column label="操作" width="100">
         <template #default="{ row }">
