@@ -182,7 +182,6 @@
         <el-table-column prop="rank" label="排名" width="70" />
         <el-table-column prop="student_name" label="学生" />
         <el-table-column prop="score" label="得分" />
-        <el-table-column prop="submitted_at" label="提交时间" />
       </el-table>
       <template #footer v-if="rankings.length === 0">
         <span style="color: #909399; font-size: 14px;">暂无学生参加此考试</span>
@@ -405,20 +404,23 @@ const viewRanking = async (examId: number) => {
     const exam = exams.value.find(e => e.id === examId)
     currentExamTitle.value = exam?.title || ''
     const data = res.data || {}
-    
-    const rankingsList = data.details || data.results || []
+
+    // ✅ 优先从 ranking 字段获取，兼容 details / results
+    const rankingsList = data.ranking || data.details || data.results || []
+
     if (rankingsList.length === 0) {
       ElMessage.info('📭 暂无学生参加此考试')
       return
     }
-    
+
+    // ✅ 处理 ranking 列表中的字段：total → score，student__username → student_name
     rankings.value = rankingsList.map((item: any, index: number) => ({
       rank: index + 1,
-      student_name: item.student_name || item.username || `学生 ${item.student_id}`,
-      score: item.score || 0,
+      student_name: item.student_name || item.student__username || item.username || `学生 ${item.student_id || item.student__id || ''}`,
+      score: item.score ?? item.total ?? 0,   // total 对应后端返回的得分
       submitted_at: item.submitted_at || '-'
     }))
-    
+
     rankVisible.value = true
   } catch (error: any) {
     if (error.response?.status === 404) {

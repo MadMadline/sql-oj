@@ -9,62 +9,90 @@
       </div>
     </div>
 
-    <!-- ✅ 增加空状态提示 -->
-    <div v-if="!loading && exams.length === 0" class="empty-state">
-      <el-empty description="暂无考试安排" />
+    <el-tabs v-model="activeTab" class="exam-tabs">
+      <el-tab-pane label="当前考试" name="current" />
+      <el-tab-pane label="考试记录" name="history" />
+    </el-tabs>
+
+    <!-- 当前考试表格 -->
+    <div v-if="activeTab === 'current'">
+      <div v-if="!loading && currentExams.length === 0" class="empty-state">
+        <el-empty description="暂无考试安排" />
+      </div>
+      <el-table v-else :data="currentExams" v-loading="loading" stripe>
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="title" label="考试名称" min-width="150" />
+        <el-table-column prop="start_time" label="开始时间" width="180" />
+        <el-table-column prop="end_time" label="结束时间" width="180" />
+        <el-table-column prop="total_score" label="总分" width="80" />
+        <el-table-column label="状态" width="120">
+          <template #default="{ row }">
+            <el-tag :type="getExamStatus(row).type">
+              {{ getExamStatus(row).text }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              size="small"
+              @click="enterExam(row.id)"
+              :disabled="getExamStatus(row).disabled"
+            >
+              {{ getExamStatus(row).buttonText }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
 
-    <el-table v-else :data="exams" v-loading="loading" stripe>
-      <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="title" label="考试名称" min-width="150" />
-      <el-table-column prop="start_time" label="开始时间" width="180" />
-      <el-table-column prop="end_time" label="结束时间" width="180" />
-      <el-table-column prop="total_score" label="总分" width="80" />
-      <el-table-column label="状态" width="120">
-        <template #default="{ row }">
-          <el-tag :type="getExamStatus(row).type">
-            {{ getExamStatus(row).text }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="120">
-        <template #default="{ row }">
-          <el-button
-            type="primary"
-            size="small"
-            @click="enterExam(row.id)"
-            :disabled="getExamStatus(row).disabled"
-          >
-            {{ getExamStatus(row).buttonText }}
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- 考试记录表格 -->
+    <div v-if="activeTab === 'history'">
+      <div v-if="!loading && historyExams.length === 0" class="empty-state">
+        <el-empty description="暂无考试记录" />
+      </div>
+      <el-table v-else :data="historyExams" v-loading="loading" stripe>
+        <el-table-column prop="id" label="ID" width="60" />
+        <el-table-column prop="title" label="考试名称" min-width="150" />
+        <el-table-column prop="start_time" label="开始时间" width="180" />
+        <el-table-column prop="end_time" label="结束时间" width="180" />
+        <el-table-column label="操作" width="120">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              size="small"
+              @click="goToResult(row.id || row.exam_id)"
+            >
+              查看详情
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../../stores/user'
 import { getExams } from '../../api/exams'
+import { getSubmissions } from '../../api/submissions'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const exams = ref<any[]>([])
 const loading = ref(false)
+const activeTab = ref('current')
+const submittedExamIds = ref<Set<number>>(new Set())
 
 const getExamStatus = (exam: any) => {
   const now = new Date()
   const start = new Date(exam.start_time)
   const end = new Date(exam.end_time)
-
-  // ✅ 如果学生已交卷，显示“已完成”，禁止进入
-  if (exam.submitted || exam.is_completed) {
-    return { text: '已完成', type: 'success', disabled: true, buttonText: '已完成' }
-  }
 
   if (now < start) {
     return { text: '未开始', type: 'info', disabled: true, buttonText: '未开始' }
@@ -75,23 +103,56 @@ const getExamStatus = (exam: any) => {
   }
 }
 
-// ✅ 修改：加载考试时，如果后端支持按学生过滤，带上 user_id
+const currentExams = computed(() => {
+  return exams.value.filter(exam => !submittedExamIds.value.has(exam.id))
+})
+
+const historyExams = computed(() => {
+  return exams.value.filter(exam => submittedExamIds.value.has(exam.id))
+})
+
 const loadExams = async () => {
   loading.value = true
   try {
-    // 如果后端支持按学生过滤，可以加上 params
-    // const res = await getExams({ user_id: userStore.user?.id })
-    const res = await getExams()
-    exams.value = res.data.results || res.data || []
+    const [examRes, subRes] = await Promise.all([
+      getExams(),
+      getSubmissions()
+    ])
+
+    let rawExams = examRes.data.results || examRes.data || []
+    // 确保每个考试对象都有数字 id，兼容 exam_id 字段
+    exams.value = rawExams.map((exam: any) => ({
+      ...exam,
+      id: exam.id ?? exam.exam_id,   // 如果 id 缺失，尝试 exam_id
+    }))
+
+    const submissions = subRes.data?.results || subRes.data || []
+    const ids = new Set<number>()
+    submissions.forEach((sub: any) => {
+      if (sub.exam) {
+        ids.add(sub.exam)
+      }
+    })
+    submittedExamIds.value = ids
   } catch (error) {
-    ElMessage.error('加载考试列表失败')
+    ElMessage.error('加载数据失败')
   } finally {
     loading.value = false
   }
 }
 
 const enterExam = (examId: number) => {
-  router.push(`/exam/${examId}`)
+  if (examId && !isNaN(examId)) {
+    router.push(`/exam/${examId}`)
+  }
+}
+
+const goToResult = (examId: number) => {
+  if (examId && !isNaN(examId)) {
+    router.push(`/exam/${examId}/result`)
+  } else {
+    ElMessage.error('考试ID无效')
+  }
 }
 
 const goToQuestions = () => {
@@ -135,5 +196,8 @@ onMounted(() => {
 }
 .empty-state {
   margin-top: 60px;
+}
+.exam-tabs {
+  margin-bottom: 20px;
 }
 </style>

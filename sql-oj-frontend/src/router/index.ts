@@ -56,7 +56,7 @@ const router = createRouter({
       name: 'ExamResult',
       component: () => import('../views/student/ExamResult.vue'),
       meta: { requiresAuth: true, allowedRoles: ['student', 'teacher'] }
-    }
+    },
     // ========== 教师端页面（使用 Layout）==========
     {
       path: '/teacher',

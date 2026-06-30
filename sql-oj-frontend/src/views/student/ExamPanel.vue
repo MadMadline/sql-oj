@@ -140,7 +140,6 @@ const submitAll = async () => {
     cancelButtonText: '继续答题',
     type: 'warning'
   }).then(async () => {
-    // ✅ 构建批量提交数据：{ question_id, submitted_sql }
     const answerList = Object.entries(answers.value).map(([questionId, sql]) => ({
       question_id: Number(questionId),
       submitted_sql: sql
@@ -152,12 +151,9 @@ const submitAll = async () => {
     }
 
     try {
-      // 直接使用 request 发送，避免嵌套包装
-      await request.post(`/exams/${examId.value}/submit/`, {
-        answers: answerList
-      })
+      await request.post(`/exams/${examId.value}/submit/`, { answers: answerList })
       ElMessage.success('提交成功 ✅')
-      router.push('/submissions')
+      router.push(`/exam/${examId.value}/result`)
     } catch (error: any) {
       const msg = error.response?.data?.error || '提交失败，请重试'
       ElMessage.error(msg)
