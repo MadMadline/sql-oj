@@ -12,7 +12,7 @@ DOCKER_IMAGE = "postgres:15-alpine"
 DB_NAME = "judge_db"
 DB_USER = "judge_user"
 DB_PASSWORD = "judge_pass"
-CONTAINER_TIMEOUT = 60            # 适当加长，以防首次镜像解压慢
+CONTAINER_TIMEOUT = 60
 SQL_TIMEOUT = 30
 MEM_LIMIT = "512m"
 
